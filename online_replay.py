@@ -21,26 +21,6 @@ handler.setFormatter(formatter)
 
 # 将处理器添加到 Logger
 logger.addHandler(handler)
-# handler.setFormatter(formatter)
-def get_from(obj):
-        obj = bytes(obj)
-        return pb2.StreamField.FromString(obj).from_
-    #timestamp,from,to,coin,value,transHash,gasUsed,gaslimit,fee,fromType,toType,transType,isLoop,status 
-def get_to(obj):
-    obj = bytes(obj)
-    return pb2.StreamField.FromString(obj).to
-
-def get_coin(obj):
-    obj = bytes(obj)
-    obj=bytes(pb2.StreamField.FromString(obj).specialField)
-    # pb2.Edge.FromString(pb2.StreamField)
-    coin = pb2.Edge.FromString(obj).coin
-    if not coin.startswith('0x'):
-        coin = coin.upper()
-    if coin in dic:
-        coin = dic[coin]
-        # print(coin)
-    return coin
 
 dic = {
         "0xdac17f958d2ee523a2206206994597c13d831ec7": "USDT",
@@ -83,20 +63,20 @@ def start_consumer(end_time):
     print(f'consume {name}\n')
     consumer = KafkaConsumer(
         name,
-        bootstrap_servers='server-1:30812',
-                         security_protocol='SASL_PLAINTEXT',
-                         sasl_mechanism='SCRAM-SHA-512',
-                         sasl_plain_username='admin',
-                         sasl_plain_password='starryDev',
-                         api_version=(2,8,2),
-        # bootstrap_servers='10.75.75.200:30812',
+        # bootstrap_servers='server-1:30812',
         #                  security_protocol='SASL_PLAINTEXT',
         #                  sasl_mechanism='SCRAM-SHA-512',
         #                  sasl_plain_username='admin',
-        #                  sasl_plain_password='starryJDljd5Ggdhkka$',
+        #                  sasl_plain_password='starryDev',
         #                  api_version=(2,8,2),
+        bootstrap_servers='10.75.75.200:30812',
+                         security_protocol='SASL_PLAINTEXT',
+                         sasl_mechanism='SCRAM-SHA-512',
+                         sasl_plain_username='admin',
+                         sasl_plain_password='starryJDljd5Ggdhkka$',
+                         api_version=(2,8,2),
         auto_offset_reset='earliest',
-        # group_id="eth-consumer-test2"
+        group_id="eth-consumer"
         )
     running= True  # 声明使用全局变量
     while running:
@@ -110,6 +90,7 @@ def start_consumer(end_time):
                 running = False
             # print('no records')
             logger.info("no records")
+            time.sleep(2)
         else:
             for message_list in records.values():
                 for record in message_list:
@@ -138,7 +119,6 @@ def start_consumer(end_time):
                         field_value = getattr(edge, field.name)
                         
                         if field_value is None and field.default_value is not None:
-                            # 字段有非默认值
                             field_value = field.default_value
                         field_name = field.name
                         # print(field_name)
@@ -163,9 +143,9 @@ def start_consumer(end_time):
                     node1_str = "node,"+from_+',0,1924963199000,0,0,0'
                     node2_str = "node,"+to+',0,1924963199000,0,0,0'
                     logger.info(f"Received edge: {edge_str}")
-                    p1.send('coin-18a213409e7f02c55b04d8d4e17bc5',node1_str.encode())
-                    p1.send('coin-18a213409e7f02c55b04d8d4e17bc5',edge_str.encode())
-                    p1.send('coin-18a213409e7f02c55b04d8d4e17bc5',node2_str.encode())
+                    p1.send('coin-18a213409e7f02c55b04d8d4e17bc5-real-time',node1_str.encode())
+                    p1.send('coin-18a213409e7f02c55b04d8d4e17bc5-real-time',edge_str.encode())
+                    p1.send('coin-18a213409e7f02c55b04d8d4e17bc5-real-time',node2_str.encode())
                     # print(r)
                     # print(f"Received node: {node1_str}")
                     # print(f"Received node: {node2_str}")
@@ -184,10 +164,9 @@ def run_consumer():
 
         # 设置结束时间为次日的00:30分
         end_time = now.replace(day=now.day+1, hour=0, minute=30, second=0, microsecond=0)
-        consumer_thread = threading.Thread(target=start_consumer,args=(end_time,))
-
         while now < end_time:
             if now >= start_time:
+                consumer_thread = threading.Thread(target=start_consumer,args=(end_time,))
                 consumer_thread.start()
                 print(f'start thread {start_time}')
                 start_time = start_time.replace(day = start_time.day+1,minute=1, second=0, microsecond=0)

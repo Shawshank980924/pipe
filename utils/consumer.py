@@ -7,22 +7,22 @@ import cls_pb2 as pb2
 
 def start_consumer():
     
-    consumer = KafkaConsumer("ETH_test",
-    #    bootstrap_servers='10.75.75.200:30812',
-    #                      security_protocol='SASL_PLAINTEXT',
-    #                      sasl_mechanism='SCRAM-SHA-512',
-    #                      sasl_plain_username='admin',
-    #                      sasl_plain_password='starryJDljd5Ggdhkka$',
-    #                      api_version=(2,8,2),
-    bootstrap_servers='server-1:30812',
-    security_protocol='SASL_PLAINTEXT',
-    sasl_mechanism='SCRAM-SHA-512',
-    sasl_plain_username='admin',
-    sasl_plain_password='starryDev',
+    consumer = KafkaConsumer("coin-18a213409e7f02c55b04d8d4e17bc5",
+       bootstrap_servers='10.75.75.200:30812',
+                         security_protocol='SASL_PLAINTEXT',
+                         sasl_mechanism='SCRAM-SHA-512',
+                         sasl_plain_username='admin',
+                         sasl_plain_password='starryJDljd5Ggdhkka$',
+                         api_version=(2,8,2),acks='all',
+    # bootstrap_servers='server-1:30812',
+    # security_protocol='SASL_PLAINTEXT',
+    # sasl_mechanism='SCRAM-SHA-512',
+    # sasl_plain_username='admin',
+    # sasl_plain_password='starryDev',
 
-    api_version=(2,8,2),
+    # api_version=(2,8,2),
     auto_offset_reset='earliest',
-    group_id="eth-consumer"
+    # group_id="eth-consumer-test"
         )
     count = 0
     for msg in consumer:
@@ -55,7 +55,7 @@ def run_admin():
                          api_version=(2,8,2))
     # print(type(admin.list_topics()))
     topic_list = admin.list_topics()
-    print(topic_list)
+    # print(topic_list)
     #匹配topic
     remove_list = []
     for topic in topic_list:
