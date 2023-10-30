@@ -21,7 +21,7 @@ handler.setFormatter(formatter)
 
 # 将处理器添加到 Logger
 logger.addHandler(handler)
-
+# 币种地址和具体币种的映射关系
 dic = {
         "0xdac17f958d2ee523a2206206994597c13d831ec7": "USDT",
         "0xb8c77482e45f1f44de1745f52c74426c631bdd52": "BNB",
@@ -50,17 +50,21 @@ def start_consumer(end_time):
     #                      sasl_plain_username='admin',
     #                      sasl_plain_password='starryDev',
     #                      api_version=(2,8,2),acks='all')
+    # 生产者客户端配置
     p1 = KafkaProducer(bootstrap_servers='10.75.75.200:30812',
                          security_protocol='SASL_PLAINTEXT',
                          sasl_mechanism='SCRAM-SHA-512',
                          sasl_plain_username='admin',
                          sasl_plain_password='starryJDljd5Ggdhkka$',
                          api_version=(2,8,2),acks='all')
+    # 上游区块链实时爬取模块的kafka topic名称是区块链名称拼接日期的方式
     current_time = datetime.datetime.now().strftime("%Y_%m_%d")
     # name = "ETH_"+current_time
+    # 调试阶段暂时使用该topic名称
     name = "ETH_test"
     print(name)
     print(f'consume {name}\n')
+    # kafka消费者客户端配置
     consumer = KafkaConsumer(
         name,
         # bootstrap_servers='server-1:30812',
@@ -76,38 +80,48 @@ def start_consumer(end_time):
                          sasl_plain_password='starryJDljd5Ggdhkka$',
                          api_version=(2,8,2),
         auto_offset_reset='earliest',
-        group_id="eth-consumer"
+        group_id="eth-consumer" # 消费者组可以保证进程中止后下次启动从上次消费的地方开始
         )
-    running= True  # 声明使用全局变量
+    running= True  
     while running:
         # print('running')
         # 通过设置超时时间来等待新消息
-        records = consumer.poll(timeout_ms=500)  # 每次轮询等待500毫秒
+        # 消费者执行长轮询，长轮询可以配置两个参数，一个是超时时间，一个是最大消息数量
+        # 只要轮询条件中一个达到就会返回
+        # 我们这里只配置一个超时时间，轮询500ms即返回
+        records = consumer.poll(timeout_ms=500) 
 
         if len(records)==0:
-            # 未收到新消息，进行外部判断
+            # 轮询没有消息返回
+            # 首先进行时间判断
             if datetime.datetime.now() >= end_time:
+                # 超过下一天的00:30该线程终止跳出
                 running = False
             # print('no records')
             logger.info("no records")
             time.sleep(2)
         else:
+            # 存在消息返回，进行遍历消息
             for message_list in records.values():
                 for record in message_list:
                     # 提取消息记录
                     value = record.value
-                    key = record.key
-                    offset = record.offset
-                    topic = record.topic
-                    partition = record.partition
+                    # 以下是kafka消息的一些固有属性
+                    key = record.key # 消息key
+                    offset = record.offset # 偏移量
+                    topic = record.topic # topic名
+                    partition = record.partition # 消费的topic分区号
                     # print(pb2.StreamField.FromString(value))
+                    # 对kafka中的消息进行反序列化取出字段
                     from_ =  pb2.StreamField.FromString(value).from_
                     to = pb2.StreamField.FromString(value).to
+                    # sf是真实的交易数据，本身也序列化成字节，也需要反序列化
                     sf = pb2.StreamField.FromString(value).specialField
                     # print(pb2.StreamField.FromString(value))
                     edge= pb2.Edge.FromString(sf)
                     value = edge.value
-                    
+                    # 对交易发起方地址和交易对方地址进行过滤
+                    # 对交易值为0 的交易进行过滤
                     if from_=='0x0000000000000000000000000000000000000000' or to =='0x0000000000000000000000000000000000000000' or value==0:
                         logger.info(f"filter edge: from: {edge._from} to: {edge.to} value : {edge.value} rank: {edge.rank}")
                         # print(f'from_ {from_} to {to} value {value}')
@@ -116,34 +130,45 @@ def start_consumer(end_time):
                     field_values = []
                     # field_exists = edge.ListFields()
                     # print(edge.DESCRIPTOR.fields)
+                    # 取出交易数据定义的所有字段
                     for field in edge.DESCRIPTOR.fields:
+                        # 从该条交易消息中取出每个字段的值
                         field_value = getattr(edge, field.name)
-                        
+                        # proto3有个特性，若字段值赋默认值会自动将消息中的该字段的值去除
+                        # 所以需要进行特判，赋默认值
                         if field_value is None and field.default_value is not None:
                             field_value = field.default_value
                         field_name = field.name
                         # print(field_name)
+                        # 一些字段不需要记录
                         if field_name == "rate" or field_name == "usd_price":
                             continue
+                        # from的字段名去掉_
                         if field_name == '_from':
                             field_name = 'from'
+                        # 时间戳换成毫秒单位
                         if field_name == 'timestamp':
                             field_value = field_value*1000
+                        # 交易币种原始记录中有以16进制的地址表示，需要转换成真实的币种
+                        # 原始记录中已经映射的币种，转成大写
                         if field_name == 'coin' and not field_value.startswith('0x'):
                             field_value =field_value.upper()
-    # 排除特殊字段和方法
+                        # 16进制的地址需要做一次映射为真实币种名
                         if field_name == 'coin' and field_value in dic:
                                 value = dic[field_value]
-                            
+                        # _开头的字段是序列化协议自己生成的字段，非用户定义的字段
                         if not field_name.startswith("_") and not callable(field_value):
-                            # 字段拼接
+                            # 按下游的要求做字段的拼接
                             field_values.append(f"{field_value}")
+                        # 对于拼接字段不为16个多交易数据打错误日志
                     if len(field_values) != 16:
                         logger.error(f"Received field_values: {field_values}")
+                    # 按下游的要求拼接edge 以及0,1924963199000,0,0,0 再发送交易边和交易账号的消息
                     edge_str = "edge,"+",".join(field_values)+',0,1924963199000,0,0,0'
                     node1_str = "node,"+from_+',0,1924963199000,0,0,0'
                     node2_str = "node,"+to+',0,1924963199000,0,0,0'
                     logger.info(f"Received edge: {edge_str}")
+                    # 通过生产者客户端序列化后发送到下游指定的topic
                     p1.send('coin-18a213409e7f02c55b04d8d4e17bc5-real-time',node1_str.encode())
                     p1.send('coin-18a213409e7f02c55b04d8d4e17bc5-real-time',edge_str.encode())
                     p1.send('coin-18a213409e7f02c55b04d8d4e17bc5-real-time',node2_str.encode())
@@ -166,10 +191,13 @@ def run_consumer():
         # 设置结束时间为次日的00:30分
         end_time = now.replace(day=now.day+1, hour=0, minute=30, second=0, microsecond=0)
         while now < end_time:
+            # 每天超过start_time时开启一个消费线程，每天只启动一个消费线程
+            # 该消费线程的生命周期时当天直到次日00.30，由消费线程内部逻辑控制
             if now >= start_time:
                 consumer_thread = threading.Thread(target=start_consumer,args=(end_time,))
                 consumer_thread.start()
                 print(f'start thread {start_time}')
+                # 启动以后将start_time调整为次日00.05分，用于下次启动新的线程时判断
                 start_time = start_time.replace(day = start_time.day+1,minute=1, second=0, microsecond=0)
                 print(start_time)
                 logger.info(start_time)
