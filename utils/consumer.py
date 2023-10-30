@@ -1,3 +1,11 @@
+'''
+Author: Shawshank980924 Akatsuki980924@163.com
+Date: 2023-10-17 10:43:01
+LastEditors: Shawshank980924 Akatsuki980924@163.com
+LastEditTime: 2023-10-30 09:47:27
+FilePath: /sxx/labProjs/pipe/utils/consumer.py
+Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+'''
 from kafka import KafkaConsumer
 import time
 # import cls_pb2 as cls
@@ -65,5 +73,5 @@ def run_admin():
             
     print(remove_list)
 if __name__ == '__main__':
-    start_consumer()
-    # run_admin()
+    # start_consumer()
+    run_admin()

@@ -38,14 +38,14 @@ def DataReplay(begin_date,end_date,topic_name):
     
     while begin_date <= end_date:
         y,m,d = begin_date.strftime("%Y_%m_%d").split('_')
-        path = 'hdfs://hadoop:8020/sxx/replay/trans/{}/{}/{}.orc'.format(y,m,d)
+        path = 'hdfs:///sxx/replay/trans/{}/{}/{}.orc'.format(y,m,d)
         orc2kafka(path,topic_name)
         logger.info(f'begin_date {begin_date}')
         # logger.info(begin_date)
         begin_date+=delta
         remain = remain_seconds_today()
         logger.info(f'wait {remain} for tomorrow')
-        time.sleep(remain)
+        # time.sleep(remain)
 
 def orc2kafka(path,topic):
     # producer = KafkaProducer(acks=1,bootstrap_servers=['hpc02:9092','hpc03:9092','hpc04:9092','hpc05:9092','hpc06:9092','hpc07:9092','hpc08:9092','hpc09:9092','hpc10:9092'],api_version=(2,6,0))
@@ -66,7 +66,7 @@ def orc2kafka(path,topic):
 def generate_random_number():
     return random.randint(0, 599)
 def go2kafka(partition,topic,sleep_time):
-    p1 = KafkaProducer(acks=1,bootstrap_servers=['10.160.196.2:30002'],api_version=(2,6,0))
+    p1 = KafkaProducer(acks=1,bootstrap_servers=['hpc02:9092'],api_version=(2,6,0))
     global total
     for row in partition:
         rate = generate_random_number()
@@ -78,7 +78,7 @@ def go2kafka(partition,topic,sleep_time):
             #     print(f'total {total}')
             
         # print(f"sleep_time: {sleep_time}")
-        time.sleep(sleep_time)
+        # time.sleep(sleep_time)
         
     p1.close()
     return 0
@@ -100,3 +100,5 @@ def remain_seconds_today():
     #多预留半小时时间
     remaining_seconds = remaining_time.total_seconds()
     return remaining_seconds
+
+DataReplay("2022_01_01","2022_01_01","ethpro")

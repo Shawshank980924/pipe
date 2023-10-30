@@ -106,9 +106,10 @@ def start_consumer(end_time):
                     sf = pb2.StreamField.FromString(value).specialField
                     # print(pb2.StreamField.FromString(value))
                     edge= pb2.Edge.FromString(sf)
-                    # value = edge.value
+                    value = edge.value
                     
                     if from_=='0x0000000000000000000000000000000000000000' or to =='0x0000000000000000000000000000000000000000' or value==0:
+                        logger.info(f"filter edge: from: {edge._from} to: {edge.to} value : {edge.value} rank: {edge.rank}")
                         # print(f'from_ {from_} to {to} value {value}')
                         continue
                     # print(dir(edge))
