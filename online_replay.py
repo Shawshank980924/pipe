@@ -185,11 +185,12 @@ def run_consumer():
         # 获取当前日期和时间
         now = datetime.datetime.now()
 
-        # 设置开始时间为每天的00:05分
+        # 设置开始时间为每天的00:01分
         start_time = now.replace(hour=0, minute=1, second=0, microsecond=0)
 
         # 设置结束时间为次日的00:30分
-        end_time = now.replace(day=now.day+1, hour=0, minute=30, second=0, microsecond=0)
+        end_time = now+datetime.timedelta(days=1) 
+        end_time = end_time.replace(hour=0, minute=30, second=0, microsecond=0)
         while now < end_time:
             # 每天超过start_time时开启一个消费线程，每天只启动一个消费线程
             # 该消费线程的生命周期时当天直到次日00.30，由消费线程内部逻辑控制
@@ -197,10 +198,11 @@ def run_consumer():
                 consumer_thread = threading.Thread(target=start_consumer,args=(end_time,))
                 consumer_thread.start()
                 print(f'start thread {start_time}')
-                # 启动以后将start_time调整为次日00.05分，用于下次启动新的线程时判断
-                start_time = start_time.replace(day = start_time.day+1,minute=1, second=0, microsecond=0)
-                print(start_time)
-                logger.info(start_time)
+                # 启动以后将start_time调整为次日00.01分，用于下次启动新的线程时判断
+                start_time = start_time + datetime.timedelta(days=1)
+                # start_time = start_time.replace(day = start_time.day+1,minute=1, second=0, microsecond=0)
+                # print(start_time)
+                # logger.info(start_time)
             time.sleep(60)  # 每隔60秒检查一次时间
             now = datetime.datetime.now()
 
